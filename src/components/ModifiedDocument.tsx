@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Eye, RotateCcw } from 'lucide-react';
+import { Download, Eye, RotateCcw, Undo2 } from 'lucide-react';
 import { AnalysisResult, FeedbackItem } from '@/lib/types';
 
 interface ModifiedDocumentProps {
@@ -10,8 +10,8 @@ interface ModifiedDocumentProps {
 
 const ModifiedDocument = ({ result, acceptedSuggestions, onToggleChange }: ModifiedDocumentProps) => {
   const [showPreview, setShowPreview] = useState(true);
+  const [revertedIds, setRevertedIds] = useState<Set<string>>(new Set());
 
-  // Get all non-suggestion feedback (issues + warnings auto-applied) + accepted suggestions
   const allFeedback = [
     ...result.feedback.structure,
     ...result.feedback.citations,
@@ -20,6 +20,7 @@ const ModifiedDocument = ({ result, acceptedSuggestions, onToggleChange }: Modif
   ];
 
   const appliedChanges = allFeedback.filter((f) => {
+    if (revertedIds.has(f.id)) return false;
     if (f.type === 'issue' || f.type === 'warning') return true;
     if (f.type === 'suggestion') return acceptedSuggestions.has(f.id);
     return false;
@@ -44,14 +45,10 @@ const ModifiedDocument = ({ result, acceptedSuggestions, onToggleChange }: Modif
       }
     });
 
-    // Sort by position in text (longest first to avoid partial matches)
     replacements.sort((a, b) => b.original.length - a.original.length);
 
-    const segments: { text: string; change?: typeof replacements[0] }[] = [];
-    let remaining = text;
-    let usedRanges: { start: number; end: number }[] = [];
+    const segments: { text: string; change?: typeof replacements[0]; isOriginal?: boolean }[] = [];
 
-    // Find all replacement positions
     const positioned = replacements.map((r) => {
       const idx = text.indexOf(r.original);
       return { ...r, index: idx };
@@ -59,7 +56,7 @@ const ModifiedDocument = ({ result, acceptedSuggestions, onToggleChange }: Modif
 
     let cursor = 0;
     for (const rep of positioned) {
-      if (rep.index < cursor) continue; // overlapping
+      if (rep.index < cursor) continue;
       if (rep.index > cursor) {
         segments.push({ text: text.slice(cursor, rep.index) });
       }
@@ -74,6 +71,16 @@ const ModifiedDocument = ({ result, acceptedSuggestions, onToggleChange }: Modif
   };
 
   const segments = getHighlightedDocument();
+
+  const handleRevert = (id: string) => {
+    setRevertedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    onToggleChange(id);
+  };
 
   const handleDownload = () => {
     let finalText = segments.map(s => s.text).join('');
@@ -134,12 +141,19 @@ const ModifiedDocument = ({ result, acceptedSuggestions, onToggleChange }: Modif
                     {seg.text}
                   </span>
                   <button
-                    onClick={() => onToggleChange(seg.change!.id)}
+                    onClick={() => handleRevert(seg.change!.id)}
                     className="ml-1 inline-flex items-center opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Revert to original"
                   >
-                    <RotateCcw size={12} className="text-muted-foreground hover:text-foreground" />
+                    <Undo2 size={12} className="text-muted-foreground hover:text-foreground" />
                   </button>
+                  {/* Tooltip showing original */}
+                  <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 bg-card border border-border rounded-lg p-2 shadow-elevated max-w-xs">
+                    <span className="text-xs text-muted-foreground block mb-1">Original:</span>
+                    <span className="text-xs text-foreground italic">"{seg.change.original}"</span>
+                    <span className="text-xs text-muted-foreground block mt-1">Fix:</span>
+                    <span className="text-xs text-foreground">"{seg.change.replacement}"</span>
+                  </span>
                 </span>
               ) : (
                 <span key={i}>{seg.text}</span>
