@@ -54,8 +54,8 @@ const FeedbackItemComponent = ({ item, onAcceptSuggestion, accepted }: FeedbackI
             </span>
             <span className="text-xs text-muted-foreground">{item.location}</span>
             {accepted && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-success text-primary-foreground">
-                Applied
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-suggestion text-primary-foreground">
+                ✅ Applied (blue underline in document)
               </span>
             )}
           </div>

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Plus, AlertCircle, AlertTriangle, Lightbulb, BookOpen } from 'lucide-react';
-import Logo from '@/components/Logo';
+import { Plus, AlertCircle, AlertTriangle, Lightbulb, BookOpen } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 import ScoreSpinner from '@/components/ScoreSpinner';
+import { useAuth } from '@/hooks/useAuth';
 import FileUpload from '@/components/FileUpload';
 import FeedbackItemComponent from '@/components/FeedbackItemComponent';
 import ModifiedDocument from '@/components/ModifiedDocument';
@@ -23,6 +24,11 @@ const categoryConfig: Record<Category, { label: string; icon: React.ElementType;
 const Analysis = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) navigate('/');
+  }, [user, authLoading, navigate]);
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -93,29 +99,7 @@ const Analysis = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <Logo size="sm" />
-          </div>
-          {result && (
-            <button
-              onClick={handleNewFile}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-foreground text-sm font-medium hover:bg-muted transition-colors"
-            >
-              <Plus size={16} />
-              Analyze Another File
-            </button>
-          )}
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {!result && !isAnalyzing && (

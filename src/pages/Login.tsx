@@ -1,15 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+  const { toast } = useToast();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) navigate('/dashboard');
+  }, [user, loading, navigate]);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -22,23 +32,51 @@ const Login = () => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    localStorage.setItem('reviora_user', JSON.stringify({
-      name: form.name || form.email.split('@')[0],
-      email: form.email,
-      joinedDate: new Date().toISOString(),
-    }));
-    navigate('/dashboard');
+    setSubmitting(true);
+
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: {
+            data: { full_name: form.name },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+        toast({
+          title: 'Account created!',
+          description: 'Please check your email to verify your account.',
+        });
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+        if (error) throw error;
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Something went wrong',
+        variant: 'destructive',
+      });
+    }
+    setSubmitting(false);
   };
 
   return (
-    <div className="min-h-screen gradient-hero flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[hsl(270,50%,95%)] via-[hsl(300,40%,93%)] to-[hsl(330,50%,92%)] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-foreground/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[hsl(280,60%,80%)]/30 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[hsl(200,60%,85%)]/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[hsl(320,50%,88%)]/20 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -49,14 +87,14 @@ const Login = () => {
       >
         <div className="text-center mb-8">
           <div className="flex justify-center mb-3">
-            <Logo size="lg" variant="light" />
+            <Logo size="lg" variant="dark" />
           </div>
-          <p className="text-primary-foreground/70 text-sm">
+          <p className="text-muted-foreground text-sm">
             AI-Powered Thesis Review & Feedback
           </p>
         </div>
 
-        <div className="bg-card rounded-2xl shadow-elevated p-8">
+        <div className="bg-card/80 backdrop-blur-md rounded-2xl shadow-elevated p-8 border border-[hsl(280,30%,90%)]">
           <h2 className="text-xl font-display font-bold text-foreground text-center mb-6">
             {isSignUp ? 'Create Account' : 'Welcome Back'}
           </h2>
@@ -72,7 +110,7 @@ const Login = () => {
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="John Doe"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[hsl(280,20%,85%)] bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(280,50%,70%)]"
                   />
                 </div>
                 {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
@@ -88,7 +126,7 @@ const Login = () => {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="you@university.edu"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[hsl(280,20%,85%)] bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(280,50%,70%)]"
                 />
               </div>
               {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
@@ -103,7 +141,7 @@ const Login = () => {
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[hsl(280,20%,85%)] bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(280,50%,70%)]"
                 />
                 <button
                   type="button"
@@ -118,9 +156,10 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full py-2.5 rounded-lg font-semibold text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity mt-2"
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-[hsl(280,60%,65%)] to-[hsl(320,50%,65%)] text-white hover:opacity-90 transition-opacity mt-2 disabled:opacity-50"
             >
-              {isSignUp ? 'Create Account' : 'Sign In'}
+              {submitting ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
@@ -129,7 +168,7 @@ const Login = () => {
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <button
                 onClick={() => { setIsSignUp(!isSignUp); setErrors({}); }}
-                className="text-primary font-medium hover:underline"
+                className="text-[hsl(280,60%,55%)] font-medium hover:underline"
               >
                 {isSignUp ? 'Sign In' : 'Sign Up'}
               </button>
@@ -137,7 +176,7 @@ const Login = () => {
           </div>
         </div>
 
-        <p className="text-center text-xs text-primary-foreground/50 mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-6">
           © 2026 REVIORA. Ethical AI-Powered Academic Review.
         </p>
       </motion.div>
